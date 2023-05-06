@@ -1,0 +1,13 @@
+[package]
+name = "grpc-client"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+orderbook = { path = "../orderbook" }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+tokio-stream = "0.1"
+tonic = "0.9"

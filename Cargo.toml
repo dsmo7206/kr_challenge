@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "common",
+    "grpc-client",
+    "orderbook",
+    "rest-types",
+    "server",
+    "tui-client",
+]
