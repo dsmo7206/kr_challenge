@@ -12,6 +12,7 @@ pub enum Command {
     Open(CurrencyPair, Vec<ExchangeIdentifier>),
     ShowTab(usize),
     CloseTab(usize),
+    Help,
     Quit,
 }
 
@@ -21,6 +22,7 @@ impl std::str::FromStr for Command {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "" => return Err("Enter a command".into()),
+            "help" => return Ok(Command::Help),
             "quit" => return Ok(Command::Quit),
             _ => {}
         };

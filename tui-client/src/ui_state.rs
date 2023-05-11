@@ -3,14 +3,14 @@ use orderbook as ob;
 use std::{
     collections::VecDeque,
     sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
+    time::{Duration, Instant},
 };
 use tui::widgets::{ListState, TableState};
 
 static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
 
 const MAX_LOG_MESSAGES: usize = 10;
-pub const MAX_RECENT_MID_PRICES: usize = 100;
+pub const RECENT_MID_PRICE_WINDOW_SECS: u64 = 20;
 
 pub fn get_should_stop() -> bool {
     SHOULD_STOP.load(Ordering::Relaxed)
@@ -28,6 +28,7 @@ pub struct UIState {
     pub next_log_message_index: usize,
     pub orderbooks: Vec<OrderbookState>,
     pub selected_tab_index: Option<usize>,
+    pub show_help_popup: bool,
 }
 
 impl UIState {
@@ -40,6 +41,7 @@ impl UIState {
             next_log_message_index: 0,
             orderbooks: vec![],
             selected_tab_index: None,
+            show_help_popup: false,
         }
     }
 
@@ -86,7 +88,7 @@ impl OrderbookState {
                 bids: vec![],
                 asks: vec![],
             },
-            recent_mid_prices: VecDeque::with_capacity(MAX_RECENT_MID_PRICES),
+            recent_mid_prices: VecDeque::with_capacity(100),
             min_price_seen: None,
             max_price_seen: None,
             table_state: TableState::default(),
@@ -103,8 +105,17 @@ impl OrderbookState {
         };
 
         if let Some(new_mid_price) = new_mid_price {
-            if self.recent_mid_prices.len() == MAX_RECENT_MID_PRICES {
-                self.recent_mid_prices.pop_front();
+            // Define the new window start we want
+            let cull_time = Instant::now() - Duration::from_secs(RECENT_MID_PRICE_WINDOW_SECS);
+            let cull_time_ts = (cull_time - self.start_time).as_secs_f64();
+
+            // Cull the window
+            while let Some(&(first_time, _)) = self.recent_mid_prices.front() {
+                if first_time < cull_time_ts {
+                    self.recent_mid_prices.pop_front();
+                } else {
+                    break;
+                }
             }
 
             self.recent_mid_prices

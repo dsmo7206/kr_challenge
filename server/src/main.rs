@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = Config::init_from_env()?;
 
-    serve_grpc_forever(cfg.grpc_port, Aggregator::new())
+    serve_grpc_forever(cfg.grpc_port, Aggregator::default())
         .await
         .map_err(Into::into)
 }

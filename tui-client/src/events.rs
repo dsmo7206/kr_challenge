@@ -91,6 +91,14 @@ async fn handle_key_event(
     events_state: &mut EventsState,
     key_event: KeyEvent,
 ) {
+    {
+        let mut ui_state_guard = ui_state.lock().await;
+        if ui_state_guard.show_help_popup {
+            ui_state_guard.show_help_popup = false;
+            return;
+        }
+    }
+
     match key_event.code {
         KeyCode::Char(c) => {
             ui_state.lock().await.input_text.push(c);
@@ -133,6 +141,7 @@ async fn handle_cmd(
             events_state.grpc_client = Some(grpc_connect(&server_addr).await?);
 
             let mut ui_state = ui_state.lock().await;
+            ui_state.is_connected = true;
             ui_state.orderbooks.clear();
             ui_state.selected_tab_index = None;
             ui_state.add_log_message(format!("Connected to {}!", server_addr));
@@ -210,6 +219,10 @@ async fn handle_cmd(
 
                 Ok(())
             }
+        }
+        Command::Help => {
+            ui_state.lock().await.show_help_popup = true;
+            Ok(())
         }
         Command::Quit => {
             set_should_stop();

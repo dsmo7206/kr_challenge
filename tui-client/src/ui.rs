@@ -1,4 +1,4 @@
-use super::ui_state::UIState;
+use super::ui_state::{UIState, RECENT_MID_PRICE_WINDOW_SECS};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -6,7 +6,8 @@ use tui::{
     symbols,
     text::{Span, Spans},
     widgets::{
-        Axis, Block, Borders, Cell, Chart, Dataset, List, ListItem, Paragraph, Row, Table, Tabs,
+        Axis, Block, Borders, Cell, Chart, Clear, Dataset, List, ListItem, Paragraph, Row, Table,
+        Tabs,
     },
     Frame,
 };
@@ -33,12 +34,44 @@ where
     draw_log_messages(f, chunks[2], state);
     draw_status(f, chunks[3], state);
 
+    if state.show_help_popup {
+        draw_help_popup(f, centered_rect(60, 40, f.size()), state);
+    }
+
     f.set_cursor(
         // Put cursor past the end of the input text
         chunks[1].x + state.input_text.len() as u16 + 1,
         // Move one line down, from the border to the input line
         chunks[1].y + 1,
     );
+}
+
+fn draw_help_popup<B: Backend>(f: &mut Frame<B>, area: Rect, _state: &UIState) {
+    let text = r"
+Available commands:
+  - connect <server_ipv6_address>
+      Connects to the server at the given address
+  - open <currency_pair> <exchange_1> [<exchange_2>, ...]
+      Once connected, opens a new tab showing the aggregated orderbook
+      for the given currency_pair across the given exchanges
+  - show <tab_index>
+      Sets the main view to the (zero-indexed) tab index
+  - close <tab_index>
+      Closes the tab at the (zero-indexed) tab index
+  - help
+      Shows this popup
+  - quit (or Esc)
+      Quits the program
+";
+    let paragraph = Paragraph::new(text).block(
+        Block::default()
+            .title(" Help (press any key to close) ")
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White).bg(Color::Blue)),
+    );
+
+    f.render_widget(Clear, area); //this clears out the background
+    f.render_widget(paragraph, area);
 }
 
 fn draw_main<B: Backend>(f: &mut Frame<B>, area: Rect, state: &mut UIState) {
@@ -178,8 +211,8 @@ fn draw_main_mid_chart<B: Backend>(f: &mut Frame<B>, area: Rect, state: &UIState
         .cloned()
         .collect::<Vec<_>>();
 
-    let min_x = recent_mid_prices.first().map_or(0.0, |(x, _)| *x);
-    let max_x = recent_mid_prices.last().map_or(1.0, |(x, _)| *x);
+    let max_x = recent_mid_prices.last().map_or(0.0, |(x, _)| *x);
+    let min_x = max_x - RECENT_MID_PRICE_WINDOW_SECS as f64;
 
     let mut min_y = orderbook.min_price_seen.unwrap_or(0.0);
     let mut max_y = orderbook.max_price_seen.unwrap_or(1.0);
@@ -275,13 +308,37 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, area: Rect, state: &UIState) {
         "Not connected"
     };
 
-    let widget = Paragraph::new(status)
-        //.style(Style::default().fg(Color::Yellow))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Connection Status "),
-        );
+    let widget = Paragraph::new(status).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Connection Status "),
+    );
 
     f.render_widget(widget, area);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
